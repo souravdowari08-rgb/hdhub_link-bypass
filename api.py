@@ -26,7 +26,7 @@ from contextlib import asynccontextmanager
 from typing import Any, Optional
 from urllib.parse import urlparse
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Security
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Security
 from fastapi.security import APIKeyHeader
 from playwright.async_api import async_playwright, TimeoutError as PWTimeout
 from pydantic import BaseModel
@@ -47,7 +47,10 @@ S: dict = {}  # app state: playwright, browser, shared session, semaphore, lock
 _key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
-async def require_key(key: Optional[str] = Security(_key_header)) -> None:
+async def require_key(request: Request,
+                      key: Optional[str] = Security(_key_header)) -> None:
+    # header preferred; ?key=... also accepted (handy for the browser address bar)
+    key = key or request.query_params.get("key")
     if not key or not hmac.compare_digest(key.encode(), API_KEY.encode()):
         raise HTTPException(401, "Invalid or missing X-API-Key")
 
